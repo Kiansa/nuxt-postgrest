@@ -1,0 +1,17 @@
+# Draft for a future PR to https://github.com/nuxt/modules — not part of this package.
+# Submit once published to npm with docs live and Nuxt 4 support confirmed in CI.
+# Generate the canonical version with: pnpm dlx giget gh:nuxt/modules && pnpm sync nuxt-postgrest Kiansa/nuxt-postgrest
+name: nuxt-postgrest
+description: First-class PostgREST integration — typed clients, SSR composables and JWT forwarding. No Supabase required.
+repo: Kiansa/nuxt-postgrest
+npm: nuxt-postgrest
+github: https://github.com/Kiansa/nuxt-postgrest
+website: https://postgrest.nuxtjs.org
+category: Database
+type: community
+maintainers:
+  - name: Kian
+    github: Kiansa
+compatibility:
+  nuxt: '>=3.21.0'
+  requires: {}

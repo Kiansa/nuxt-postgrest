@@ -1,4 +1,4 @@
-const url = process.env.NUXT_SITE_URL || 'https://YOUR_DOCS_URL'
+const url = process.env.NUXT_SITE_URL || 'https://postgrest.nuxtjs.org'
 
 export default defineNuxtConfig({
   extends: ['docus'],

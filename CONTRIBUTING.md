@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-git clone https://github.com/YOUR_GH_USER/nuxt-postgrest
+git clone https://github.com/Kiansa/nuxt-postgrest
 cd nuxt-postgrest
 pnpm install
 pnpm db:up          # Postgres + PostgREST via docker-compose
