@@ -1,0 +1,145 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 4 * * 1' # every Monday — see the nightly-compat job below
+  workflow_dispatch:
+
+jobs:
+  lint:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - run: npm i -g --force corepack@latest && corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test:types
+
+  test:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nuxt: ['3', '4']
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - run: npm i -g --force corepack@latest && corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      - name: Pin Nuxt ${{ matrix.nuxt }}
+        if: matrix.nuxt == '3'
+        run: pnpm add -D nuxt@^3.21.0 @nuxt/kit@^3.21.0 @nuxt/schema@^3.21.0 -w
+
+      - name: Seed database
+        run: psql "postgres://postgres:postgres@localhost:5432/postgres" -v ON_ERROR_STOP=1 -f db/seed.sql
+        env:
+          PGPASSWORD: postgres
+
+      - name: Start PostgREST
+        run: |
+          curl -sL https://github.com/PostgREST/postgrest/releases/download/v16.3/postgrest-v16.3-linux-static-x86-64.tar.xz | tar xJ
+          PGRST_DB_URI="postgres://authenticator:authenticator@localhost:5432/postgres" \
+          PGRST_DB_SCHEMAS="public,internal" \
+          PGRST_DB_ANON_ROLE="anon" \
+          PGRST_JWT_SECRET="nuxt-postgrest-dev-secret-at-least-32-chars-long" \
+          PGRST_SERVER_PORT=3001 \
+          ./postgrest &
+          npx wait-on tcp:3001 -t 30000
+
+      - run: pnpm dev:prepare
+      - run: pnpm test
+        env:
+          CI: true
+          POSTGREST_URL: http://localhost:3001
+          PGRST_JWT_SECRET: nuxt-postgrest-dev-secret-at-least-32-chars-long
+
+  nightly-compat:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - run: npm i -g --force corepack@latest && corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm add -D nuxt-nightly@npm:nuxt@latest -w
+      - name: Seed database
+        run: psql "postgres://postgres:postgres@localhost:5432/postgres" -v ON_ERROR_STOP=1 -f db/seed.sql
+        env:
+          PGPASSWORD: postgres
+      - name: Start PostgREST
+        run: |
+          curl -sL https://github.com/PostgREST/postgrest/releases/download/v16.3/postgrest-v16.3-linux-static-x86-64.tar.xz | tar xJ
+          PGRST_DB_URI="postgres://authenticator:authenticator@localhost:5432/postgres" \
+          PGRST_DB_SCHEMAS="public,internal" \
+          PGRST_DB_ANON_ROLE="anon" \
+          PGRST_JWT_SECRET="nuxt-postgrest-dev-secret-at-least-32-chars-long" \
+          PGRST_SERVER_PORT=3001 \
+          ./postgrest &
+          npx wait-on tcp:3001 -t 30000
+      - run: pnpm dev:prepare
+      - run: pnpm test
+        env:
+          CI: true
+          POSTGREST_URL: http://localhost:3001
+      - name: Open issue on failure
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Nightly Nuxt compatibility check failed (${new Date().toISOString().slice(0,10)})`,
+              body: `The nightly job against \`nuxt@latest\` failed: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              labels: ['ci', 'compatibility'],
+            })
+
+  preview:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - run: npm i -g --force corepack@latest && corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prepack
+      - run: npx pkg-pr-new publish

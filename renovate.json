@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchDepTypes": ["devDependencies"],
+      "groupName": "dev dependencies (non-major)",
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchDepTypes": ["dependencies"],
+      "groupName": "dependencies (non-major)",
+      "automerge": false
+    },
+    {
+      "matchPackageNames": ["nuxt", "@nuxt/kit", "@nuxt/schema", "@supabase/postgrest-js"],
+      "matchUpdateTypes": ["major"],
+      "labels": ["breaking", "needs-manual-review"],
+      "automerge": false
+    },
+    {
+      "matchPackageNames": ["docus", "@nuxt/ui"],
+      "groupName": "docs dependencies"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "name": "nuxt-postgrest",
+  "version": "0.0.0",
+  "description": "First-class PostgREST for Nuxt: typed clients, SSR-aware composables and auth-aware JWT forwarding. No Supabase required.",
+  "repository": "YOUR_GH_USER/nuxt-postgrest",
+  "homepage": "https://YOUR_DOCS_URL",
+  "bugs": "https://github.com/YOUR_GH_USER/nuxt-postgrest/issues",
+  "license": "MIT",
+  "author": "Kian",
+  "keywords": [
+    "nuxt",
+    "nuxt-module",
+    "postgrest",
+    "postgres",
+    "postgresql",
+    "rest",
+    "database"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/module.mjs"
+    }
+  },
+  "main": "./dist/module.mjs",
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/types.d.mts"
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "packageManager": "pnpm@10.34.5",
+  "scripts": {
+    "prepack": "nuxt-module-build build",
+    "dev": "pnpm dev:prepare && nuxt dev playground",
+    "dev:build": "nuxt build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down -v",
+    "pretest": "nuxt prepare test/fixtures/basic",
+    "docs:dev": "pnpm --filter docs dev",
+    "docs:build": "pnpm --filter docs generate",
+    "release": "pnpm dev:prepare && pnpm lint && pnpm test && pnpm prepack && changelogen --release --push",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:e2e": "vitest run --project e2e",
+    "test:watch": "vitest watch",
+    "test:types": "nuxt prepare playground && nuxt prepare test/fixtures/basic && pnpm typecheck:project playground && pnpm typecheck:project test/fixtures/basic",
+    "typecheck:project": "sh -c 'for c in app server shared; do vue-tsc --noEmit -p \"$0/.nuxt/tsconfig.$c.json\" || exit 1; done'"
+  },
+  "dependencies": {
+    "@nuxt/kit": "^4.5.2",
+    "@supabase/postgrest-js": "^2.116.0",
+    "defu": "^6.1.4"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "^3.4.2",
+    "@nuxt/eslint-config": "^1.17.0",
+    "@nuxt/module-builder": "^1.0.3",
+    "@nuxt/schema": "^4.5.2",
+    "@nuxt/test-utils": "^4.3.2",
+    "@types/node": "latest",
+    "changelogen": "^0.6.2",
+    "eslint": "^10.10.0",
+    "h3": "^1.15.4",
+    "nuxt": "^4.5.2",
+    "nuxt-auth-utils": "^0.5.30",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1",
+    "vue-tsc": "^3.3.11"
+  }
+}

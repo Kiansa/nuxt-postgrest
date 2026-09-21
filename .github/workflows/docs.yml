@@ -1,0 +1,45 @@
+name: docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - run: npm i -g --force corepack@latest && corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm docs:build
+        env:
+          NUXT_SITE_URL: https://YOUR_GH_USER.github.io/nuxt-postgrest
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/.output/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,70 @@
+name: release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: write # changelogen pushes the GitHub release
+  id-token: write # npm trusted publishing (OIDC) — no NPM_TOKEN secret needed
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # changelogen needs full history for the changelog
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+          registry-url: https://registry.npmjs.org
+
+      - run: npm i -g --force corepack@latest && corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      - name: Seed database
+        run: psql "postgres://postgres:postgres@localhost:5432/postgres" -v ON_ERROR_STOP=1 -f db/seed.sql
+        env:
+          PGPASSWORD: postgres
+
+      - name: Start PostgREST
+        run: |
+          curl -sL https://github.com/PostgREST/postgrest/releases/download/v16.3/postgrest-v16.3-linux-static-x86-64.tar.xz | tar xJ
+          PGRST_DB_URI="postgres://authenticator:authenticator@localhost:5432/postgres" \
+          PGRST_DB_SCHEMAS="public,internal" \
+          PGRST_DB_ANON_ROLE="anon" \
+          PGRST_JWT_SECRET="nuxt-postgrest-dev-secret-at-least-32-chars-long" \
+          PGRST_SERVER_PORT=3001 \
+          ./postgrest &
+          npx wait-on tcp:3001 -t 30000
+
+      - run: pnpm dev:prepare
+      - run: pnpm lint
+      - run: pnpm test
+        env:
+          CI: true
+          POSTGREST_URL: http://localhost:3001
+      - run: pnpm test:types
+      - run: pnpm prepack
+
+      # Requires npm trusted publishing configured for this package (npmjs.com → package → Settings → Trusted publisher).
+      # npm CLI ^11.5.1, present on Node 24, reads OIDC credentials automatically — no NODE_AUTH_TOKEN needed.
+      - run: npm publish --provenance --access public
+
+      - run: npx changelogen gh release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

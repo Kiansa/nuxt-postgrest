@@ -1,0 +1,73 @@
+import { fileURLToPath } from 'node:url'
+import { createHmac } from 'node:crypto'
+import { describe, expect, it } from 'vitest'
+import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+
+// Requires a running PostgREST with db/seed.sql (`pnpm db:up`, or the CI service containers)
+const POSTGREST_URL = process.env.POSTGREST_URL || 'http://localhost:3001'
+const JWT_SECRET = process.env.PGRST_JWT_SECRET || 'nuxt-postgrest-dev-secret-at-least-32-chars-long'
+
+function sign(claims: Record<string, unknown>) {
+  const b64 = (s: string) => Buffer.from(s).toString('base64url')
+  const h = b64(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+  const p = b64(JSON.stringify(claims))
+  return `${h}.${p}.${createHmac('sha256', JWT_SECRET).update(`${h}.${p}`).digest('base64url')}`
+}
+
+process.env.NUXT_POSTGREST_SECRET_KEY = sign({ role: 'service_role' })
+
+const reachable = await globalThis.fetch(POSTGREST_URL).then(() => true, () => false)
+if (!reachable && process.env.CI) {
+  throw new Error(`PostgREST is not reachable at ${POSTGREST_URL}`)
+}
+
+async function loginCookie(query: string) {
+  const res = await fetch(`/api/login?${query}`, { method: 'POST' })
+  const cookie = res.headers.get('set-cookie')?.split(';')[0]
+  expect(cookie).toBeTruthy()
+  return cookie!
+}
+
+describe.skipIf(!reachable)('nuxt-postgrest (e2e)', async () => {
+  await setup({
+    rootDir: fileURLToPath(new URL('../fixtures/basic', import.meta.url)),
+  })
+
+  it('anonymous requests only see public rows (RLS as anon)', async () => {
+    expect(await $fetch('/api/me/todos')).toEqual(['Public todo'])
+  })
+
+  it('usePostgrestUser forwards the session token (client-visible field)', async () => {
+    const cookie = await loginCookie('as=alice')
+    expect(await $fetch('/api/me/todos', { headers: { cookie } })).toEqual(['Public todo', 'Alice private todo'])
+  })
+
+  it('usePostgrestUser prefers the server-only `secure` session field', async () => {
+    const cookie = await loginCookie('as=bob&where=secure')
+    expect(await $fetch('/api/me/todos', { headers: { cookie } })).toEqual(['Public todo', 'Bob private todo'])
+  })
+
+  it('an explicit token overrides the session token', async () => {
+    const cookie = await loginCookie('as=alice')
+    expect(await $fetch('/api/me/explicit', { headers: { cookie } })).toEqual(['Public todo', 'Bob private todo'])
+  })
+
+  it('usePostgrestAdmin bypasses RLS', async () => {
+    expect(await $fetch('/api/admin/todos')).toEqual(['Public todo', 'Alice private todo', 'Bob private todo'])
+  })
+
+  it('targets non-default schemas via .schema() and createPostgrestClient({ schema })', async () => {
+    expect(await $fetch('/api/admin/audit')).toEqual({ viaSchemaMethod: ['seeded'], viaFactory: ['seeded'] })
+  })
+
+  it('usePostgrest renders user data during SSR', async () => {
+    const anon = await $fetch<string>('/')
+    expect(anon).toContain('Public todo')
+    expect(anon).not.toContain('Alice private todo')
+
+    const cookie = await loginCookie('as=alice')
+    const html = await $fetch<string>('/', { headers: { cookie } })
+    expect(html).toContain('Alice private todo')
+    expect(html).not.toContain('Bob private todo')
+  })
+})

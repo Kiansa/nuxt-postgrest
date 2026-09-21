@@ -1,0 +1,40 @@
+name: Bug report
+description: Something doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        StackBlitz can't run PostgREST, so please reproduce against a local `docker-compose.yml`
+        (see [Local PostgREST](https://YOUR_DOCS_URL/getting-started/local-postgrest)) or a minimal repo.
+  - type: input
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: A GitHub repo, or the exact `docker-compose.yml` / SQL / composable calls that trigger it.
+      placeholder: https://github.com/you/reproduction OR paste minimal steps below
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      value: |
+        - nuxt-postgrest:
+        - nuxt:
+        - postgrest (docker image tag or `postgrest --version`):
+        - node:
+        - package manager:
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      render: shell
