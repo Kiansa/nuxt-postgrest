@@ -34,7 +34,7 @@
   "files": [
     "dist"
   ],
-  "packageManager": "pnpm@10.34.5",
+  "packageManager": "pnpm@12.5.1",
   "scripts": {
     "prepack": "nuxt-module-build build",
     "dev": "pnpm dev:prepare && nuxt dev playground",

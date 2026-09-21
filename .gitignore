@@ -26,6 +26,12 @@ dist
 
 # Env
 .env
+.env.*
+!.env.example
+
+# AI agent skills (installed via the `skills` CLI, restorable from skills-lock.json)
+.agents/
+.claude/skills/
 
 # Testing
 reports

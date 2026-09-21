@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "arch-nuxt-module-builder": {
+      "source": "hairyf/skills",
+      "sourceType": "github",
+      "skillPath": "skills/arch-nuxt-module-builder/SKILL.md",
+      "computedHash": "eabab44c856dce2a43e765252401a5e7665909871572408b5dddd0ed3a5e902f"
+    }
+  }
+}
