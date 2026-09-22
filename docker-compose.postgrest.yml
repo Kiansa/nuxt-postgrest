@@ -1,0 +1,27 @@
+# One PostgREST API in front of one database on the shared Postgres instance
+# (docker-compose.yml). This is the module's own dev/test database.
+#
+# The real-world pattern this mirrors: one Postgres instance, any number of databases,
+# and one PostgREST + one file like this per database — its own PGRST_DB_URI, its own
+# published port, its own domain behind a reverse proxy — all pointing at the same Postgres.
+services:
+  postgrest:
+    image: postgrest/postgrest:v16.3
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:authenticator@db:5432/postgres
+      PGRST_DB_SCHEMAS: public,internal
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: nuxt-postgrest-dev-secret-at-least-32-chars-long
+      PGRST_ADMIN_SERVER_PORT: 3002
+      # The --ready healthcheck below only works against a literal host, not the
+      # default `!4` (all IPv4 interfaces). Scope that to the admin server only —
+      # it isn't published, so binding it to localhost doesn't affect reachability.
+      PGRST_ADMIN_SERVER_HOST: localhost
+    ports: ['3001:3000']
+    healthcheck:
+      test: ['CMD', 'postgrest', '--ready']
+      interval: 2s
+      retries: 20

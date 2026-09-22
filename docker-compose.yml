@@ -1,9 +1,9 @@
-# Local PostgREST for the playground, tests and bug reproductions.
-#   pnpm db:up   → Postgres :5432, PostgREST :3001
-#   pnpm db:down → stop and wipe
+# Shared local Postgres instance — one instance, any number of databases.
+# A PostgREST API gets added per database in a separate file; see docker-compose.postgrest.yml.
+# `pnpm db:up` brings up both together for dev/tests. `pnpm db:down` stops and wipes.
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:18
     environment:
       POSTGRES_PASSWORD: postgres
     ports: ['5432:5432']
@@ -11,22 +11,5 @@ services:
       - ./db/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
-      interval: 2s
-      retries: 20
-
-  postgrest:
-    image: postgrest/postgrest:v16.3
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PGRST_DB_URI: postgres://authenticator:authenticator@db:5432/postgres
-      PGRST_DB_SCHEMAS: public,internal
-      PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: nuxt-postgrest-dev-secret-at-least-32-chars-long
-      PGRST_ADMIN_SERVER_PORT: 3002
-    ports: ['3001:3000']
-    healthcheck:
-      test: ['CMD', 'postgrest', '--ready']
       interval: 2s
       retries: 20

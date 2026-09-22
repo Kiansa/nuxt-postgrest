@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createPostgrestClient } from '../../src/runtime/shared/createPostgrestClient'
+import { createPostgrestClient } from '../../src/runtime/shared/utils/createPostgrestClient'
 
 describe('createPostgrestClient', () => {
   it('requires a url', () => {

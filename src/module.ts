@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import {
   addImports,
   addServerImports,
@@ -15,13 +15,6 @@ import { defu } from 'defu'
 
 const logger = useLogger('nuxt-postgrest')
 
-/**
- * Where the module reads the current user's PostgREST JWT from.
- * - `nuxt-auth-utils`: reads `session[tokenKey]` (client) or `session.secure[tokenKey] ?? session[tokenKey]` (server)
- * - `none`: no automatic token; pass `{ token }` explicitly or fall back to the anon key
- */
-export type AuthProvider = 'nuxt-auth-utils' | 'none'
-
 export interface ModuleOptions {
   /**
    * PostgREST API URL. Override at runtime with `NUXT_PUBLIC_POSTGREST_URL`.
@@ -33,39 +26,17 @@ export interface ModuleOptions {
    */
   key?: string
   /**
-   * Default Postgres schema for all clients.
-   * @default 'public'
+   * Session field holding the PostgREST JWT. Only read when `nuxt-auth-utils` is installed
+   * (auto-detected) — otherwise pass a token explicitly to `usePostgrest`/`usePostgrestUser`.
+   * @default 'postgrest_token'
    */
-  schema?: string
-  auth?: {
-    /**
-     * Auth integration used to read the user's JWT. Auto-detected when omitted.
-     */
-    provider?: AuthProvider
-    /**
-     * Session field holding the PostgREST JWT.
-     * @default 'postgrest_token'
-     */
-    tokenKey?: string
-  }
-  types?: {
-    /**
-     * Path to the generated `Database` type file. Used to type every client.
-     * @default '~~/shared/types/database.types.ts'
-     */
-    path?: string
-    /**
-     * Generate the file with the Supabase CLI on `nuxt dev` / `nuxt prepare`.
-     * Requires `NUXT_POSTGREST_DB_URI` and a running Docker daemon. Never runs during `nuxt build`.
-     * @default false
-     */
-    generate?: boolean
-    /**
-     * Schemas to include in generated types.
-     * @default ['public']
-     */
-    schemas?: string[]
-  }
+  tokenKey?: string
+  /**
+   * Generate the `Database` type file with the Supabase CLI on `nuxt dev` / `nuxt prepare`.
+   * Requires `NUXT_POSTGREST_DB_URI` and a running Docker daemon. Never runs during `nuxt build`.
+   * @default false
+   */
+  generateTypes?: boolean
 }
 
 export default defineNuxtModule<ModuleOptions>({
@@ -79,33 +50,11 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     url: '',
     key: '',
-    schema: 'public',
-    auth: {
-      provider: undefined,
-      tokenKey: 'postgrest_token',
-    },
-    types: {
-      path: '~~/shared/types/database.types.ts',
-      generate: false,
-      schemas: ['public'],
-    },
+    tokenKey: 'postgrest_token',
+    generateTypes: false,
   },
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
-
-    // --- Auth provider -------------------------------------------------------
-    let provider = options.auth?.provider
-    if (!provider) {
-      provider = hasNuxtModule('nuxt-auth-utils', nuxt) ? 'nuxt-auth-utils' : 'none'
-      logger.debug(`Auth provider: ${provider} (auto-detected)`)
-    }
-    if (provider === 'nuxt-auth-utils' && !hasNuxtModule('nuxt-auth-utils', nuxt)) {
-      logger.warn('`auth.provider` is `nuxt-auth-utils` but the module is not installed. Falling back to `none`.')
-      provider = 'none'
-    }
-    // Only the matching adapter gets bundled, so apps without nuxt-auth-utils never reference its auto-imports
-    nuxt.options.alias['#postgrest-auth/app'] = resolver.resolve(`./runtime/app/auth/${provider}`)
-    nuxt.options.alias['#postgrest-auth/server'] = resolver.resolve(`./runtime/server/auth/${provider}`)
 
     // --- Runtime config ------------------------------------------------------
     nuxt.options.runtimeConfig.public.postgrest = defu(
@@ -113,9 +62,7 @@ export default defineNuxtModule<ModuleOptions>({
       {
         url: options.url || '',
         key: options.key || '',
-        schema: options.schema || 'public',
-        authProvider: provider,
-        tokenKey: options.auth?.tokenKey || 'postgrest_token',
+        tokenKey: options.tokenKey || 'postgrest_token',
       },
     )
     nuxt.options.runtimeConfig.postgrest = defu(
@@ -124,15 +71,15 @@ export default defineNuxtModule<ModuleOptions>({
     )
 
     // --- Database types ------------------------------------------------------
-    const typesPath = await resolvePath(options.types?.path || '~~/shared/types/database.types.ts')
-    const shouldGenerate = options.types?.generate
+    const typesPath = await resolvePath('~~/shared/types/database.types.ts')
+    const shouldGenerate = options.generateTypes
       && (nuxt.options.dev || nuxt.options._prepare)
       && !nuxt.options.test
 
     if (shouldGenerate) {
       // Runs before templates are rendered, so the type template below sees the fresh file
       nuxt.hook('modules:done', () => {
-        generateTypes(typesPath, options.types?.schemas || ['public'])
+        generateTypes(typesPath)
       })
     }
 
@@ -144,8 +91,68 @@ export default defineNuxtModule<ModuleOptions>({
         : `// No types found at ${typesPath}. See https://github.com/Kiansa/nuxt-postgrest#types\nexport type Database = any\n`,
     })
 
+    // --- Token resolution ------------------------------------------------------
+    // nuxt-auth-utils is the one auth library this module knows about, and only when it's
+    // actually installed — detected once, here, at build time. Apps without it never get a
+    // reference to its composables (which don't exist for them) baked into their bundle.
+    // Any other auth library: read the token yourself and pass it to usePostgrest/usePostgrestUser.
+    const hasAuthUtils = hasNuxtModule('nuxt-auth-utils', nuxt)
+    if (hasAuthUtils) {
+      logger.debug('nuxt-auth-utils detected — reading the PostgREST JWT from its session automatically')
+    }
+
+    addTemplate({
+      filename: 'postgrest-token-app.ts',
+      write: true,
+      getContents: () => hasAuthUtils
+        ? `import { useUserSession } from '#imports'
+
+// Client-visible session data. Tokens stored under \`secure\` are server-only by design.
+export function getAccessToken(tokenKey: string): string | undefined {
+  const { session } = useUserSession()
+  const value = (session.value as Record<string, unknown> | null | undefined)?.[tokenKey]
+  return typeof value === 'string' ? value : undefined
+}
+`
+        : `export function getAccessToken(_tokenKey: string): string | undefined {
+  return undefined
+}
+`,
+    })
+
+    addTemplate({
+      filename: 'postgrest-token-server.ts',
+      write: true,
+      getContents: () => hasAuthUtils
+        ? `import type { H3Event } from 'h3'
+// \`getUserSession\` only exists in Nitro's #imports. Nuxt also type-checks Nitro utils in the app
+// context, where it's missing, so the check is suppressed here. Server type-checks still cover it.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { getUserSession } from '#imports'
+
+export async function getAccessToken(event: H3Event, tokenKey: string): Promise<string | undefined> {
+  const session = await getUserSession(event) as Record<string, unknown> & { secure?: Record<string, unknown> }
+  // Prefer the server-only \`secure\` field, fall back to the public session field
+  const value = session?.secure?.[tokenKey] ?? session?.[tokenKey]
+  return typeof value === 'string' ? value : undefined
+}
+`
+        : `import type { H3Event } from 'h3'
+
+export async function getAccessToken(_event: H3Event, _tokenKey: string): Promise<string | undefined> {
+  return undefined
+}
+`,
+    })
+
+    // Nitro's `impound` plugin blocks the `#build/*` alias from server code (it's reserved for
+    // the Vue app build), so the server template needs its own alias pointing at the same file.
+    nuxt.options.alias['#postgrest-token/app'] = join(nuxt.options.buildDir, 'postgrest-token-app')
+    nuxt.options.alias['#postgrest-token/server'] = join(nuxt.options.buildDir, 'postgrest-token-server')
+
     // --- Composables ---------------------------------------------------------
-    const shared = resolver.resolve('./runtime/shared/createPostgrestClient')
+    const shared = resolver.resolve('./runtime/shared/utils/createPostgrestClient')
 
     addImports([
       { name: 'usePostgrest', from: resolver.resolve('./runtime/app/composables/usePostgrest') },
@@ -160,7 +167,7 @@ export default defineNuxtModule<ModuleOptions>({
   },
 })
 
-function generateTypes(typesPath: string, schemas: string[]) {
+function generateTypes(typesPath: string) {
   const dbUri = process.env.NUXT_POSTGREST_DB_URI
   if (!dbUri) {
     logger.warn('Skipping type generation: `NUXT_POSTGREST_DB_URI` is not set.')
@@ -172,7 +179,7 @@ function generateTypes(typesPath: string, schemas: string[]) {
     // execFile (not a shell string) so the connection URI can't inject commands
     const output = execFileSync(
       'npx',
-      ['--yes', 'supabase', 'gen', 'types', 'typescript', '--db-url', dbUri, '--schema', schemas.join(',')],
+      ['--yes', 'supabase', 'gen', 'types', 'typescript', '--db-url', dbUri, '--schema', 'public'],
       { encoding: 'utf-8', timeout: 120_000, stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' },
     )
     // Never overwrite a good file with a partial/failed run

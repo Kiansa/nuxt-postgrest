@@ -25,26 +25,22 @@ CI runs the same checks against both Nuxt 3 and Nuxt 4.
 ## Project layout
 
 ```
-src/module.ts              module definition, runtime config, type-gen hook
+src/module.ts              module definition, runtime config, type-gen hook, nuxt-auth-utils detection
 src/runtime/shared/         createPostgrestClient — the one place a PostgrestClient is built
-src/runtime/app/            usePostgrest + auth adapters (client & SSR)
-src/runtime/server/         usePostgrestUser, usePostgrestAdmin + auth adapters (Nitro only)
+src/runtime/app/            usePostgrest (client & SSR)
+src/runtime/server/         usePostgrestUser, usePostgrestAdmin (Nitro only)
 playground/                 manual testing app — a full login flow, RLS, admin & schema examples
 test/unit/                  pure-logic tests (no PostgREST needed)
 test/e2e/                   @nuxt/test-utils tests against test/fixtures/basic, real PostgREST
 docs/                       Docus documentation site
-db/seed.sql, docker-compose.yml   local PostgREST used by dev, tests and CI
+db/seed.sql, docker-compose.yml, docker-compose.postgrest.yml   local Postgres + PostgREST used by dev, tests and CI
 ```
 
-## Adding an auth provider
+## Auth
 
-Auth is adapter-based so apps without a given library never bundle its imports:
+`nuxt-auth-utils` is the only auth library the module knows about, and it's the only one worth special-casing: it's detected once in `setup()` via `hasNuxtModule`, and that boolean decides the *contents* of two small code-generated files (`postgrest-token-app.ts` / `postgrest-token-server.ts`, written via `addTemplate`) — real code reading the session when it's installed, a one-line stub returning `undefined` when it's not. This is deliberate: a static top-level `import { useUserSession } from '#imports'` in a published module's runtime would break the build for any app that doesn't have `nuxt-auth-utils` installed, since that auto-import wouldn't exist for them.
 
-1. Add the provider id to `AuthProvider` in `src/module.ts`.
-2. Add `src/runtime/app/auth/<provider>.ts` exporting `getAccessToken(tokenKey): string | undefined`.
-3. Add `src/runtime/server/auth/<provider>.ts` exporting `getAccessToken(event, tokenKey): Promise<string | undefined>`.
-4. Add detection in the `hasNuxtModule(...)` chain in `setup()`.
-5. Document it under `docs/content/2.guide/3.authentication.md`.
+There's no pluggable-provider mechanism beyond this. Every other auth library is out of scope for the module — users read their own session however their library exposes it, and pass the resulting token to `usePostgrest({ token })` / `usePostgrestUser(event, { token })` themselves. If you're touching this, keep it to those two template files in `src/module.ts`; don't reintroduce a per-provider adapter directory.
 
 ## Releasing (maintainers)
 

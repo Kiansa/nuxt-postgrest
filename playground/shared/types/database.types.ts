@@ -1,5 +1,5 @@
 // Shape emitted by `supabase gen types typescript` for db/seed.sql.
-// Regenerate with `postgrest.types.generate: true` + NUXT_POSTGREST_DB_URI.
+// Regenerate with `postgrest.generateTypes: true` + NUXT_POSTGREST_DB_URI.
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {

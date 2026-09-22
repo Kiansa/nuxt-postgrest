@@ -6,6 +6,12 @@
       "sourceType": "github",
       "skillPath": "skills/arch-nuxt-module-builder/SKILL.md",
       "computedHash": "eabab44c856dce2a43e765252401a5e7665909871572408b5dddd0ed3a5e902f"
+    },
+    "postgresql": {
+      "source": "sickn33/agentic-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/postgresql/SKILL.md",
+      "computedHash": "03d057b2a1c0fb18abdd17d5ad85c36704f29cec7e6822681e94e17a0412cb08"
     }
   }
 }
