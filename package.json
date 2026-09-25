@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "First-class PostgREST for Nuxt: typed clients, SSR-aware composables and auth-aware JWT forwarding. No Supabase required.",
   "repository": "Kiansa/nuxt-postgrest",
-  "homepage": "https://postgrest.nuxtjs.org",
+  "homepage": "https://kiansa.github.io/nuxt-postgrest/",
   "bugs": "https://github.com/Kiansa/nuxt-postgrest/issues",
   "license": "MIT",
   "author": "Kian",
