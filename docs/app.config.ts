@@ -7,7 +7,7 @@ export default defineAppConfig({
     title: 'Nuxt PostgREST',
   },
   github: {
-    url: 'https://github.com/Kiansa/nuxt-postgrest',
+    url: 'https://github.com/kiansa/nuxt-postgrest',
     branch: 'main',
     rootDir: 'docs',
   },

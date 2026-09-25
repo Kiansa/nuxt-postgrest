@@ -2,7 +2,7 @@
 
 First-class [PostgREST](https://postgrest.org) for [Nuxt](https://nuxt.com): typed clients, SSR-aware composables, and auth-aware JWT forwarding. Built on [`@supabase/postgrest-js`](https://github.com/supabase/postgrest-js) — no Supabase account or hosting required.
 
-[📖 Documentation](https://kiansa.github.io/nuxt-postgrest/) · [🐛 Report a bug](https://github.com/Kiansa/nuxt-postgrest/issues)
+[📖 Documentation](https://kiansa.github.io/nuxt-postgrest/) · [🐛 Report a bug](https://github.com/kiansa/nuxt-postgrest/issues)
 
 ## Features
 
@@ -42,7 +42,7 @@ See the [full documentation](https://kiansa.github.io/nuxt-postgrest/) for confi
 ## Development
 
 ```bash
-git clone https://github.com/Kiansa/nuxt-postgrest
+git clone https://github.com/kiansa/nuxt-postgrest
 cd nuxt-postgrest
 pnpm install
 pnpm db:up      # Postgres + PostgREST on :5432 / :3001

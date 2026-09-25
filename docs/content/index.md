@@ -26,7 +26,7 @@ Typed clients, SSR-aware composables and automatic JWT forwarding for any self-h
   color: neutral
   icon: i-simple-icons-github
   size: xl
-  to: https://github.com/Kiansa/nuxt-postgrest
+  to: https://github.com/kiansa/nuxt-postgrest
   variant: outline
   ---
   Star on GitHub

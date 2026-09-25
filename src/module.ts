@@ -88,7 +88,7 @@ export default defineNuxtModule<ModuleOptions>({
       write: true,
       getContents: () => existsSync(typesPath)
         ? `export type { Database } from '${typesPath.replace(/(\.d)?\.ts$/, '')}'\n`
-        : `// No types found at ${typesPath}. See https://github.com/Kiansa/nuxt-postgrest#types\nexport type Database = any\n`,
+        : `// No types found at ${typesPath}. See https://github.com/kiansa/nuxt-postgrest#types\nexport type Database = any\n`,
     })
 
     // --- Token resolution ------------------------------------------------------
