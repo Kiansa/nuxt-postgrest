@@ -20,7 +20,7 @@ pnpm test        # unit + e2e — needs `pnpm db:up` running
 pnpm test:types  # compile-time checks in playground/ and test/fixtures/basic/
 ```
 
-CI runs the same checks against both Nuxt 3 and Nuxt 4.
+The module requires Nuxt 4+; CI tests against the pinned version plus a nightly job against `nuxt@latest`.
 
 ## Project layout
 

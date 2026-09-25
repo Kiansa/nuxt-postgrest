@@ -26,10 +26,6 @@ jobs:
   test:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        nuxt: ['3', '4']
     services:
       postgres:
         image: postgres:18
@@ -48,10 +44,6 @@ jobs:
           node-version: 24.21.0
       - run: npm i -g --force corepack@latest && corepack enable
       - run: pnpm install --frozen-lockfile
-
-      - name: Pin Nuxt ${{ matrix.nuxt }}
-        if: matrix.nuxt == '3'
-        run: pnpm add -D nuxt@^3.21.0 @nuxt/kit@^3.21.0 @nuxt/schema@^3.21.0 -w
 
       - name: Seed database
         run: psql "postgres://postgres:postgres@localhost:5432/postgres" -v ON_ERROR_STOP=1 -f db/seed.sql

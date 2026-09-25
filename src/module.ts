@@ -44,7 +44,7 @@ export default defineNuxtModule<ModuleOptions>({
     name: 'nuxt-postgrest',
     configKey: 'postgrest',
     compatibility: {
-      nuxt: '^3.21.0 || >=4.0.0',
+      nuxt: '>=4.0.0',
     },
   },
   defaults: {

@@ -21,7 +21,7 @@ pnpm test:watch       # vitest watch
 pnpm test:types       # compile-time checks in playground/ and test/fixtures/basic/
 ```
 
-To run a single test file: `vitest run test/unit/createPostgrestClient.test.ts` (or any path under `test/e2e/`). CI runs the same checks against both Nuxt 3 and Nuxt 4.
+To run a single test file: `vitest run test/unit/createPostgrestClient.test.ts` (or any path under `test/e2e/`). The module requires Nuxt 4+; CI also runs a nightly job against `nuxt@latest`.
 
 Before opening a PR: `pnpm lint`, `pnpm test`, `pnpm test:types` (see CONTRIBUTING.md).
 

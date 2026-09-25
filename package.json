@@ -45,13 +45,13 @@
     "pretest": "nuxt prepare test/fixtures/basic",
     "docs:dev": "pnpm --filter docs dev",
     "docs:build": "pnpm --filter docs generate",
-    "release": "pnpm dev:prepare && pnpm lint && pnpm test && pnpm prepack && changelogen --release --push",
+    "release": "pnpm dev:prepare && pnpm lint && pnpm test && pnpm test:types && pnpm prepack && changelogen --release --push",
     "lint": "eslint .",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:e2e": "vitest run --project e2e",
     "test:watch": "vitest watch",
-    "test:types": "nuxt prepare playground && nuxt prepare test/fixtures/basic && pnpm typecheck:project playground && pnpm typecheck:project test/fixtures/basic",
+    "test:types": "pnpm dev:prepare && nuxt prepare test/fixtures/basic && pnpm typecheck:project playground && pnpm typecheck:project test/fixtures/basic",
     "typecheck:project": "sh -c 'for c in app server shared; do vue-tsc --noEmit -p \"$0/.nuxt/tsconfig.$c.json\" || exit 1; done'"
   },
   "dependencies": {
